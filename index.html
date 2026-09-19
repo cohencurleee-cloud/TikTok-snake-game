@@ -229,9 +229,33 @@ function freeCell(){
   for(var i=0;i<total;i++){var k=(start+i*97)%total;if(!b.has(k))return P(k)}
   return null;
 }
+function freeAppleCell(){
+  var occupied=bodySet(false);
+  S.apples.forEach(function(_,k){occupied.add(k)});
+  S.bombs.forEach(function(_,k){occupied.add(k)});
+
+  if(S.snake.length&&typeof NEVER_LOSE_INDEX!=='undefined'){
+    var head=S.snake[0],tail=S.snake[S.snake.length-1];
+    var headIndex=NEVER_LOSE_INDEX.get(K(head.x,head.y));
+    var tailIndex=NEVER_LOSE_INDEX.get(K(tail.x,tail.y));
+    var gap=cycleDist(headIndex,tailIndex);
+    var choices=[];
+
+    for(var k=0;k<COLS*ROWS;k++){
+      if(occupied.has(k))continue;
+      var idx=NEVER_LOSE_INDEX.get(k);
+      var adv=cycleDist(headIndex,idx);
+      if(adv>0&&adv<gap-2)choices.push(k);
+    }
+
+    if(choices.length)return P(choices[Math.floor(Math.random()*choices.length)]);
+  }
+
+  return freeCell();
+}
 function spawnApples(n){
   n=Math.min(5000,Math.max(0,Math.floor(Number(n)||0)));
-  for(var i=0;i<n;i++){var p=freeCell();if(!p)break;S.apples.set(K(p.x,p.y),{x:p.x,y:p.y,born:performance.now(),phase:Math.random()*6.28})}
+  for(var i=0;i<n;i++){var p=freeAppleCell();if(!p)break;S.apples.set(K(p.x,p.y),{x:p.x,y:p.y,born:performance.now(),phase:Math.random()*6.28})}
 }
 function spawnBombs(n){
   n=Math.min(1000,Math.max(0,Math.floor(Number(n)||0)));
@@ -312,86 +336,101 @@ function pop(p,type,n){
   }
 }
 function burst(type,n){pop(S.snake[0]||{x:15,y:26},type,n)}
-function nearestAppleDistance(sx,sy,blocked){
-  var start=K(sx,sy);
-  if(S.apples.has(start))return 0;
-
-  var q=[start],qi=0,dist=new Map([[start,0]]);
-  while(qi<q.length){
-    var ck=q[qi++],p=P(ck),cd=dist.get(ck);
-    for(var i=0;i<4;i++){
-      var d=DIRS[i],x=p.x+d.x,y=p.y+d.y;
-      if(x<0||x>=COLS||y<0||y>=ROWS)continue;
-      var nk=K(x,y);
-      if(dist.has(nk)||blocked.has(nk)||S.bombs.has(nk))continue;
-      if(S.apples.has(nk))return cd+1;
-      dist.set(nk,cd+1);
-      q.push(nk);
-    }
-  }
-  return 9999;
-}
-
 function chooseNeverLoseMove(){
   var head=S.snake[0];
   var tail=S.snake[S.snake.length-1];
   var tailIndex=NEVER_LOSE_INDEX.get(K(tail.x,tail.y));
   var gap=cycleDist(S.headIndex,tailIndex);
+  var reserve=S.growth>0?3:2;
+  var maxAdvance=Math.max(1,gap-reserve);
 
   var blocked=bodySet(false);
-  if(S.growth===0&&tail)blocked.delete(K(tail.x,tail.y));
+  S.bombs.forEach(function(_,k){blocked.add(k)});
 
-  var candidates=[];
-  for(var i=0;i<4;i++){
-    var d=DIRS[i],x=head.x+d.x,y=head.y+d.y;
-    if(x<0||x>=COLS||y<0||y>=ROWS)continue;
+  var total=COLS*ROWS;
+  var first=new Int8Array(total);
+  var seen=new Uint8Array(total);
+  var q=new Int32Array(total);
+  first.fill(-1);
 
-    var k=K(x,y);
-    if(blocked.has(k))continue;
+  var start=K(head.x,head.y),qi=0,qz=0,target=-1;
+  q[qz++]=start;
+  seen[start]=1;
 
-    var idx=NEVER_LOSE_INDEX.get(k);
-    if(idx===undefined)continue;
-
-    var jump=cycleDist(S.headIndex,idx);
-    if(jump===0)continue;
-
-    var isTail=tail&&x===tail.x&&y===tail.y;
-    if(jump>gap)continue;
-    if(jump===gap&&!(S.growth===0&&isTail))continue;
-
-    candidates.push({x:x,y:y,d:d,idx:idx,jump:jump,bomb:S.bombs.has(k)});
-  }
-
-  if(!candidates.length)return null;
-
-  var nonBomb=candidates.filter(function(c){return !c.bomb});
-  var pool=nonBomb.length?nonBomb:candidates;
-
-  var distanceBlocked=new Set(blocked);
-  var best=null,bestScore=Infinity;
-
-  for(var j=0;j<pool.length;j++){
-    var c=pool[j];
-    distanceBlocked.delete(K(c.x,c.y));
-
-    var appleDist=nearestAppleDistance(c.x,c.y,distanceBlocked);
-    var turnPenalty=(c.d.x===S.dir.x&&c.d.y===S.dir.y)?0:.08;
-    var jumpPenalty=c.jump*.015;
-    var score=appleDist+turnPenalty+jumpPenalty+(c.bomb?1000:0);
-
-    if(score<bestScore){
-      bestScore=score;
-      best=c;
+  // Shortest-path search, but only through Hamiltonian-safe forward shortcuts.
+  // That makes the snake visibly chase the apple without ever passing its tail.
+  while(qi<qz){
+    var ck=q[qi++];
+    if(ck!==start&&S.apples.has(ck)){
+      target=ck;
+      break;
     }
 
-    distanceBlocked.add(K(c.x,c.y));
+    var cp=P(ck);
+    var currentAdvance=ck===start?0:cycleDist(S.headIndex,NEVER_LOSE_INDEX.get(ck));
+
+    for(var i=0;i<4;i++){
+      var d=DIRS[i];
+      var x=cp.x+d.x,y=cp.y+d.y;
+      if(x<0||x>=COLS||y<0||y>=ROWS)continue;
+
+      var nk=K(x,y);
+      if(seen[nk]||blocked.has(nk))continue;
+
+      var idx=NEVER_LOSE_INDEX.get(nk);
+      var adv=cycleDist(S.headIndex,idx);
+
+      // Move strictly forward around the safe cycle and keep a buffer before the tail.
+      if(adv<=currentAdvance||adv>maxAdvance)continue;
+
+      seen[nk]=1;
+      first[nk]=ck===start?i:first[ck];
+      q[qz++]=nk;
+    }
   }
 
-  if(best)return best;
+  if(target>=0&&first[target]>=0){
+    var di=first[target],dir=DIRS[di];
+    var nx=head.x+dir.x,ny=head.y+dir.y;
+    return {
+      x:nx,
+      y:ny,
+      d:dir,
+      idx:NEVER_LOSE_INDEX.get(K(nx,ny)),
+      bomb:false
+    };
+  }
 
+  // No apple can be reached by a safe shortcut right now.
+  // Take the normal cycle step so the tail advances and opens a safe route.
   var successor=(S.headIndex+1)%NEVER_LOSE_PATH.length;
   var p=NEVER_LOSE_PATH[successor];
-  return {x:p.x,y:p.y,d:{x:p.x-head.x,y:p.y-head.y},idx:successor,jump:1,bomb:S.bombs.has(K(p.x,p.y))};
+
+  // If a bomb is sitting on the normal step, try another forward-safe neighbor first.
+  if(S.bombs.has(K(p.x,p.y))){
+    var best=null,bestJump=Infinity;
+    for(var j=0;j<4;j++){
+      var d2=DIRS[j],x2=head.x+d2.x,y2=head.y+d2.y;
+      if(x2<0||x2>=COLS||y2<0||y2>=ROWS)continue;
+      var k2=K(x2,y2);
+      if(blocked.has(k2))continue;
+      var idx2=NEVER_LOSE_INDEX.get(k2);
+      var jump=cycleDist(S.headIndex,idx2);
+      if(jump>0&&jump<=maxAdvance&&jump<bestJump){
+        bestJump=jump;
+        best={x:x2,y:y2,d:d2,idx:idx2,bomb:false};
+      }
+    }
+    if(best)return best;
+  }
+
+  return {
+    x:p.x,
+    y:p.y,
+    d:{x:p.x-head.x,y:p.y-head.y},
+    idx:successor,
+    bomb:S.bombs.has(K(p.x,p.y))
+  };
 }
 
 function crash(){

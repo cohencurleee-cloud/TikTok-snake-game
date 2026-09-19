@@ -57,7 +57,7 @@ var DIRS=[{x:1,y:0},{x:0,y:1},{x:-1,y:0},{x:0,y:-1}];
 
 var S={
   snake:[],dir:DIRS[0],apples:new Map(),bombs:new Map(),particles:[],
-  growth:0,alive:true,lastStep:0,lastFrame:0,
+  growth:0,alive:true,headIndex:0,lastStep:0,lastFrame:0,
   w:0,h:0,tile:1,ox:0,oy:0,bw:0,bh:0,dpr:1,bridge:false
 };
 
@@ -165,13 +165,46 @@ function inside(p){return p.x>=0&&p.x<COLS&&p.y>=0&&p.y<ROWS}
 function opposite(a,b){return a.x===-b.x&&a.y===-b.y}
 function center(p){return{x:S.ox+(p.x+.5)*S.tile,y:S.oy+(p.y+.5)*S.tile}}
 
+function buildNeverLoseCycle(){
+  var path=[],x,y;
+  // First column goes all the way down.
+  for(y=0;y<ROWS;y++)path.push({x:0,y:y});
+
+  // Snake through the rest of the board while leaving the top row for the return path.
+  for(x=1;x<COLS;x++){
+    if(x%2===1){
+      path.push({x:x,y:ROWS-1});
+      for(y=ROWS-2;y>=1;y--)path.push({x:x,y:y});
+    }else{
+      path.push({x:x,y:1});
+      for(y=2;y<ROWS;y++)path.push({x:x,y:y});
+    }
+  }
+
+  // Return across the top row to close the loop back to (0,0).
+  path.push({x:COLS-1,y:0});
+  for(x=COLS-2;x>=1;x--)path.push({x:x,y:0});
+  return path;
+}
+var NEVER_LOSE_PATH=buildNeverLoseCycle();
+
 function reset(){
   S.snake=[];
-  var y=22,x=10;
-  for(var i=x;i>=1;i--)S.snake.push({x:i,y:y});
-  for(var j=y+1;j<=Math.min(ROWS-3,y+7);j++)S.snake.push({x:1,y:j});
-  for(var q=2;q<=7;q++)S.snake.push({x:q,y:Math.min(ROWS-3,y+7)});
-  S.dir=DIRS[0];S.growth=0;S.alive=true;
+  S.growth=0;S.alive=true;
+
+  var startLength=26;
+  S.headIndex=Math.floor(NEVER_LOSE_PATH.length*.42);
+
+  for(var i=0;i<startLength;i++){
+    var idx=(S.headIndex-i+NEVER_LOSE_PATH.length)%NEVER_LOSE_PATH.length;
+    var p=NEVER_LOSE_PATH[idx];
+    S.snake.push({x:p.x,y:p.y});
+  }
+
+  var next=NEVER_LOSE_PATH[(S.headIndex+1)%NEVER_LOSE_PATH.length];
+  var head=S.snake[0];
+  S.dir={x:next.x-head.x,y:next.y-head.y};
+
   if(!S.apples.size)spawnApples(1);
 }
 function bodySet(skipHead){
@@ -271,27 +304,54 @@ function pop(p,type,n){
   }
 }
 function burst(type,n){pop(S.snake[0]||{x:15,y:26},type,n)}
-function crash(){S.alive=false;pop(S.snake[0]||{x:15,y:26},'bomb',30);setTimeout(reset,280)}
+function crash(){
+  // The never-lose bot does not die. If anything ever gets out of sync,
+  // silently rebuild a safe snake and keep the stream going.
+  reset();
+}
 function step(){
   if(!S.alive)return;
   if(!S.apples.size)spawnApples(1);
-  var d=choose();
+
+  var nextIndex=(S.headIndex+1)%NEVER_LOSE_PATH.length;
+  var p=NEVER_LOSE_PATH[nextIndex];
+  var h=S.snake[0];
+  var d={x:p.x-h.x,y:p.y-h.y};
+
+  // Defensive fallback: this should never happen, but it guarantees no visible loss.
+  if(Math.abs(d.x)+Math.abs(d.y)!==1){
+    reset();
+    return;
+  }
+
   if(d.x!==S.dir.x||d.y!==S.dir.y)clickSound();
   S.dir=d;
-  var h=S.snake[0],p={x:h.x+d.x,y:h.y+d.y};
-  if(!inside(p))return crash();
-  var k=K(p.x,p.y),b=bodySet(true),tail=S.snake[S.snake.length-1];
-  if(!S.growth&&tail)b.delete(K(tail.x,tail.y));
-  if(b.has(k))return crash();
-  S.snake.unshift(p);
-  if(S.apples.has(k)){S.apples.delete(k);S.growth++;pop(p,'apple',8);eatSound()}
+  S.headIndex=nextIndex;
+  S.snake.unshift({x:p.x,y:p.y});
+
+  var k=K(p.x,p.y);
+
+  if(S.apples.has(k)){
+    S.apples.delete(k);
+    S.growth++;
+    pop(p,'apple',8);
+    eatSound();
+  }
+
   if(S.bombs.has(k)){
     S.bombs.delete(k);
     var cut=Math.min(Math.max(8,Math.floor(S.snake.length*.18)),Math.max(0,S.snake.length-8));
     if(cut)S.snake.splice(S.snake.length-cut,cut);
     pop(p,'bomb',24);
   }
-  if(S.growth)S.growth--;else S.snake.pop();
+
+  if(S.growth)S.growth--;
+  else S.snake.pop();
+
+  // Even at maximum length, following the closed route remains safe forever.
+  if(S.snake.length>NEVER_LOSE_PATH.length){
+    S.snake.length=NEVER_LOSE_PATH.length;
+  }
 }
 
 function resize(){

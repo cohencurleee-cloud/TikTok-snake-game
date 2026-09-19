@@ -187,6 +187,14 @@ function buildNeverLoseCycle(){
   return path;
 }
 var NEVER_LOSE_PATH=buildNeverLoseCycle();
+var NEVER_LOSE_INDEX=new Map();
+for(var ni=0;ni<NEVER_LOSE_PATH.length;ni++){
+  NEVER_LOSE_INDEX.set(K(NEVER_LOSE_PATH[ni].x,NEVER_LOSE_PATH[ni].y),ni);
+}
+
+function cycleDist(a,b){
+  return (b-a+NEVER_LOSE_PATH.length)%NEVER_LOSE_PATH.length;
+}
 
 function reset(){
   S.snake=[];
@@ -304,30 +312,107 @@ function pop(p,type,n){
   }
 }
 function burst(type,n){pop(S.snake[0]||{x:15,y:26},type,n)}
-function crash(){
-  // The never-lose bot does not die. If anything ever gets out of sync,
-  // silently rebuild a safe snake and keep the stream going.
-  reset();
+function nearestAppleDistance(sx,sy,blocked){
+  var start=K(sx,sy);
+  if(S.apples.has(start))return 0;
+
+  var q=[start],qi=0,dist=new Map([[start,0]]);
+  while(qi<q.length){
+    var ck=q[qi++],p=P(ck),cd=dist.get(ck);
+    for(var i=0;i<4;i++){
+      var d=DIRS[i],x=p.x+d.x,y=p.y+d.y;
+      if(x<0||x>=COLS||y<0||y>=ROWS)continue;
+      var nk=K(x,y);
+      if(dist.has(nk)||blocked.has(nk)||S.bombs.has(nk))continue;
+      if(S.apples.has(nk))return cd+1;
+      dist.set(nk,cd+1);
+      q.push(nk);
+    }
+  }
+  return 9999;
 }
+
+function chooseNeverLoseMove(){
+  var head=S.snake[0];
+  var tail=S.snake[S.snake.length-1];
+  var tailIndex=NEVER_LOSE_INDEX.get(K(tail.x,tail.y));
+  var gap=cycleDist(S.headIndex,tailIndex);
+
+  var blocked=bodySet(false);
+  if(S.growth===0&&tail)blocked.delete(K(tail.x,tail.y));
+
+  var candidates=[];
+  for(var i=0;i<4;i++){
+    var d=DIRS[i],x=head.x+d.x,y=head.y+d.y;
+    if(x<0||x>=COLS||y<0||y>=ROWS)continue;
+
+    var k=K(x,y);
+    if(blocked.has(k))continue;
+
+    var idx=NEVER_LOSE_INDEX.get(k);
+    if(idx===undefined)continue;
+
+    var jump=cycleDist(S.headIndex,idx);
+    if(jump===0)continue;
+
+    var isTail=tail&&x===tail.x&&y===tail.y;
+    if(jump>gap)continue;
+    if(jump===gap&&!(S.growth===0&&isTail))continue;
+
+    candidates.push({x:x,y:y,d:d,idx:idx,jump:jump,bomb:S.bombs.has(k)});
+  }
+
+  if(!candidates.length)return null;
+
+  var nonBomb=candidates.filter(function(c){return !c.bomb});
+  var pool=nonBomb.length?nonBomb:candidates;
+
+  var distanceBlocked=new Set(blocked);
+  var best=null,bestScore=Infinity;
+
+  for(var j=0;j<pool.length;j++){
+    var c=pool[j];
+    distanceBlocked.delete(K(c.x,c.y));
+
+    var appleDist=nearestAppleDistance(c.x,c.y,distanceBlocked);
+    var turnPenalty=(c.d.x===S.dir.x&&c.d.y===S.dir.y)?0:.08;
+    var jumpPenalty=c.jump*.015;
+    var score=appleDist+turnPenalty+jumpPenalty+(c.bomb?1000:0);
+
+    if(score<bestScore){
+      bestScore=score;
+      best=c;
+    }
+
+    distanceBlocked.add(K(c.x,c.y));
+  }
+
+  if(best)return best;
+
+  var successor=(S.headIndex+1)%NEVER_LOSE_PATH.length;
+  var p=NEVER_LOSE_PATH[successor];
+  return {x:p.x,y:p.y,d:{x:p.x-head.x,y:p.y-head.y},idx:successor,jump:1,bomb:S.bombs.has(K(p.x,p.y))};
+}
+
+function crash(){
+  // Never show a loss screen. If something impossible happens, pause instead.
+  S.alive=true;
+}
+
 function step(){
   if(!S.alive)return;
   if(!S.apples.size)spawnApples(1);
 
-  var nextIndex=(S.headIndex+1)%NEVER_LOSE_PATH.length;
-  var p=NEVER_LOSE_PATH[nextIndex];
-  var h=S.snake[0];
-  var d={x:p.x-h.x,y:p.y-h.y};
+  var move=chooseNeverLoseMove();
+  if(!move)return;
 
-  // Defensive fallback: this should never happen, but it guarantees no visible loss.
-  if(Math.abs(d.x)+Math.abs(d.y)!==1){
-    reset();
-    return;
-  }
-
+  var d=move.d;
   if(d.x!==S.dir.x||d.y!==S.dir.y)clickSound();
+
   S.dir=d;
-  S.headIndex=nextIndex;
-  S.snake.unshift({x:p.x,y:p.y});
+  S.headIndex=move.idx;
+  var p={x:move.x,y:move.y};
+  S.snake.unshift(p);
 
   var k=K(p.x,p.y);
 
@@ -348,7 +433,6 @@ function step(){
   if(S.growth)S.growth--;
   else S.snake.pop();
 
-  // Even at maximum length, following the closed route remains safe forever.
   if(S.snake.length>NEVER_LOSE_PATH.length){
     S.snake.length=NEVER_LOSE_PATH.length;
   }

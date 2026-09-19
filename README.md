@@ -34,3 +34,8 @@ Example:
 The game still auto-starts. The username is only used by the hidden LIVE bridge.
 
 On iPhone Safari, audio can require one tap on the page before automatic sound playback is permitted. The turn sound is cut from the supplied screen recording.
+
+
+## Audio credit
+
+Keyboard turn sound: "Android Keypress Standard.ogg" by Hhcjhjfjhjjfjfkkdjfjb(Android), Wikimedia Commons, licensed CC BY-SA 3.0.

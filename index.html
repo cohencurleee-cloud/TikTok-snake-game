@@ -29,41 +29,30 @@ var S={
   w:0,h:0,tile:1,ox:0,oy:0,bw:0,bh:0,dpr:1,bridge:false
 };
 
-var CLICK_B64='SUQzBAAAAAABA1RYWFgAAAASAAADbWFqb3JfYnJhbmQAbXA0MgBUWFhYAAAAEQAAA21pbm9yX3ZlcnNpb24AMQBUWFhYAAAAIAAAA2NvbXBhdGlibGVfYnJhbmRzAGlzb21tcDQxbXA0MgBUU1NFAAAADgAAA0xhdmY2MS43LjEwMwAAAAAAAAAAAAAA//twwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAFAAAHWABVVVVVVVVVVVVVVVVVVVVVVVVVgICAgICAgICAgICAgICAgICAgICqqqqqqqqqqqqqqqqqqqqqqqqqqtXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////8AAAAATGF2YzYxLjE5AAAAAAAAAAAAAAAAJAPiAAAAAAAAB1jVM5vCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/7cMQAAEAUAgAAgAAh3haOJp+ABQgAgw1ESVPqOEcg9BcG0ggmCESq9Xv73lk25blxpOQtgXYkD6O5GLETa2u952kFy0B7ZC7iCkCqZqXrAGUqI6RhgEXQZ6ASgo7SjKkDLb5KgtgW0RQbR00VFcR1h7X5+IP5Zfycib/y+Ydh3LMMSzcrp+1KTCA746r//MQA4kT/+rZgAIZkYf/4BRjOhWceCfA2WbQMZHbplQvgZkDgOgoASK9Q9jkDgAzUSAM/DQDDInAaA/ybHPK6kwBgsBhoCgY9DIGVwiBIKfplcwNE3AwmAQMahMIg4AYYAiHIEg1/v8DDwOACKABQDDVgWgBakAoL/9v8FBWF7QMGgEA4Xhc4MuH7hhIA4Gf//+CIOBwQBwEAYCgZfIUXMICgKAcEQTEaf///+3LEVYAdJi76GbqAA2Cvazcw8AL//hc2Fp4ngWAT6LKCygEQAFjFkCCA1xS4mQyP////////+G3hhcZgi454+hSgmA9CdBBhAz5eICKXFHJAg9pSLAJDIRCIZERrNitBdc01YUMX09brmgigbiqdohHJQOYtys4cBBIxcw1J8h0myBbG0EPKEdUI7Npsl4Nwljhc3F43Fcorwm4thkI9sMhpiOmEv0X/mQIeS9VsJb2u0Fh3GhzVt8BpgxFlnE0FwMjFnzFlqfe1r23k0gLgQQArSygAzgQw61ayzPVafuJWHec6r/8FoK+LGCcLBobgRwYhNz8TyFMzMhxbocBiVqh/tb53vP5kCHlzZ0WPWWMsDWqyEFwVDcaBcXpojdYna5UxlGltPFubXGrWIkAAAAEtyqVOHMaBkv/7cMQHABCI31m894AaWajt9CexEiuAlC/noEUlowtygU6bw2l2VDyhMiJHWVrG4EWRIV4ahZhv3aCHg5M+53OBvb0+pm3cSFND2/zH+vWv+b33rN9bxn7vn1vv71A1Tf//80V5uZjd3zF1R5Ylm061Z1jba+X9ih4tYKor32nLX+eJxY2td7DDfPUESJBAAAKckneGCqgVsbVPhJjjblIIZPK5uYVj0lkkCY/jwAQ9P0xgT1a9/Ky3kfPrE5bYhP7tq6NwVsslhlGJBdXCAeh4BcjM2WLGUbyIf3F5gBcQhYSDktnCwvjuSCSgLHFhyfCQTNK4lgHQjASHL4vKRpf+m7DRIWlswZ+mKzBlXRuBz31jcbn0navrIfp12I3FN9tNrYQjAAAAAAC79dnVttQzeanwgl2Y48T/+3LEC4GStSlf7DDWwisgKj6fgADDhgLNH7QCrmXWglBTUNQqBp7YgpFr60UJyBysC41SpeuLAbB6ZOusoROJs+ORPUgjYBK4umpiuoZQKlx0grVj7J68mVHLtmjK5VAQU5qLmgqJw7ZapgllUS8v300FCZiu/9Vrf4RKS3pb/Lb/3/zdUMYdO4lw7JuWGkFUkiNjarEILm+B6h9miT8cBbHx3QU4IqabAHQa5co09b+N41+xDi5FnPIq9DBMUWkvBlL9NdgR0Y3RRls8ctVqCvTVKeEv/EIxDkPw5T15BN2JTutZl+FPSbtZ3u/j97PWW/x/mfP1lj//+uf/7w/967//+v7/7/X426mNjM1cx/gq0KPYz2mSpI+NnrD9asAAAAAEE4NE105f8UMI9rFZ7/mxECe0tCFSX//7cMQNgBHNCyi5qoAAAAA0g4AABOAUMADCELUDYOwNHlwGwgGYx0J3IsHo8DAQOBsAAJEYGNA6H8FnE+aeGPA2KD7gYNBgZdMkyAkNLnwupDPgvsFqxOwpw5xkTxRMUPxmyoXxdkuVCLGynMUW/yNKpImpkTSDmVktX/6KU4syihj/59Jl4VI1TEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
-var audioCtx=null,clickBuffer=null,clickLoading=null,audioUnlocked=false;
-
-function b64ToBuffer(b64){
-  var raw=atob(b64),out=new Uint8Array(raw.length);
-  for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
-  return out.buffer;
+var KEY_CLICK_URL='https://upload.wikimedia.org/wikipedia/commons/c/cf/Android_Keypress_Standard.ogg';
+var audioCtx=null,audioUnlocked=false,clickIndex=0;
+var clickPlayers=[];
+for(var ci=0;ci<8;ci++){
+  var ca=new Audio(KEY_CLICK_URL);
+  ca.preload='auto';
+  ca.volume=.95;
+  clickPlayers.push(ca);
 }
+
 function ensureAudio(){
   var AC=window.AudioContext||window.webkitAudioContext;
   if(!AC)return Promise.reject(new Error('Web Audio not supported'));
   if(!audioCtx)audioCtx=new AC();
-  var resume=audioCtx.state==='suspended'?audioCtx.resume():Promise.resolve();
-  if(!clickLoading){
-    clickLoading=new Promise(function(resolve,reject){
-      var data=b64ToBuffer(CLICK_B64);
-      var settled=false;
-      function ok(buf){if(settled)return;settled=true;clickBuffer=buf;resolve(buf)}
-      function bad(err){if(settled)return;settled=true;reject(err)}
-      try{
-        var p=audioCtx.decodeAudioData(data.slice(0),ok,bad);
-        if(p&&typeof p.then==='function')p.then(ok,bad);
-      }catch(e){bad(e)}
-    });
-  }
-  return resume.then(function(){return clickLoading});
-}
-function rawClick(volume){
-  if(!audioCtx||audioCtx.state!=='running'||!clickBuffer)return;
-  var src=audioCtx.createBufferSource(),gain=audioCtx.createGain();
-  src.buffer=clickBuffer;gain.gain.value=volume==null?.9:volume;
-  src.connect(gain);gain.connect(audioCtx.destination);src.start();
+  return audioCtx.state==='suspended'?audioCtx.resume():Promise.resolve();
 }
 function clickSound(){
-  ensureAudio().then(function(){rawClick(.95)}).catch(function(){});
+  var a=clickPlayers[clickIndex++%clickPlayers.length];
+  try{
+    a.pause();
+    a.currentTime=0;
+    var p=a.play();
+    if(p&&p.catch)p.catch(function(){});
+  }catch(e){}
 }
 function eatSound(){
   ensureAudio().then(function(){
@@ -86,7 +75,7 @@ function unlockAudio(){
   ensureAudio().then(function(){
     if(audioUnlocked)return;
     audioUnlocked=true;
-    rawClick(.75);
+    clickSound();
   }).catch(function(){});
 }
 addEventListener('pointerdown',unlockAudio,{passive:true});
